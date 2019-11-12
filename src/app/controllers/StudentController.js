@@ -50,7 +50,45 @@ class StudentController {
     });
   }
 
-  async updater(req, res) {}
+  async update(req, res) {
+    const schema = yup.object().shape({
+      name: yup.string(),
+      email: yup.string().email(),
+      age: yup
+        .number()
+        .positive()
+        .integer(),
+      weight: yup.number().positive(),
+      height: yup.number().positive(),
+    });
+
+    if (!(await schema.isValid(req.body))) {
+      return res.status(401).json({ error: 'Dados de entrada inválidos' });
+    }
+
+    const { email } = req.body;
+
+    const student = await Student.findByPk(req.userId);
+
+    if (email !== student.email) {
+      const userExist = await Student.findOne({ where: { email } });
+
+      if (userExist) {
+        return res.status(400).json({ error: 'Email em utilização' });
+      }
+    }
+
+    const { id, name, age, weight, height } = await student.update(req.body);
+
+    return res.json({
+      id,
+      name,
+      email,
+      age,
+      weight,
+      height,
+    });
+  }
 }
 
 export default new StudentController();
