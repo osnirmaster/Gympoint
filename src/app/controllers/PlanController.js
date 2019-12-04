@@ -70,4 +70,4 @@ class PlanController {
   }
 }
 
-module.exports = new PlanController();
+export default new PlanController();
