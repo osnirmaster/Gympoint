@@ -1,8 +1,10 @@
 import * as yup from 'yup';
-import { addMonths, format, parseISO, isBefore } from 'date-fns';
+import { addMonths, parseISO, isBefore } from 'date-fns';
 import Enrollment from '../models/Enrollment';
 import Plan from '../models/Plan';
-// import Student from '../models/Student';
+import Student from '../models/Student';
+import Queue from '../../lib/Queue';
+import EnrollmentMail from '../jobs/EnrollmentMail';
 
 class EnrollmentController {
   async index(req, res) {
@@ -34,19 +36,42 @@ class EnrollmentController {
 
     if (!plan) return res.status(400).json({ error: 'Plano nao existe ' });
 
+    // const student = await Student.findByPk(student_id);
+
     const end_date = addMonths(parseISO(start_date), plan.duration);
 
     const price = plan.duration * plan.price;
 
-    const enrollment = await Enrollment.create({
-      student_id,
-      plan_id,
-      start_date,
-      end_date,
-      price,
+    const enrollment = await Enrollment.create(
+      {
+        student_id,
+        plan_id,
+        start_date,
+        end_date,
+        price,
+      },
+      {
+        include: [
+          {
+            model: Student,
+            as: 'student',
+            attributes: ['name', 'email'],
+          },
+          {
+            model: Plan,
+            as: 'plan',
+            attributes: ['title'],
+          },
+        ],
+      }
+    );
+    // console.log(enrollment.findByPk(enrollment.id, {}));
+    const resultEnrollment = await enrollment.reload(enrollment.id);
+    await Queue.add(EnrollmentMail.key, {
+      resultEnrollment,
     });
 
-    return res.json(enrollment);
+    return res.json(resultEnrollment);
   }
 
   async update(req, res) {
